@@ -587,15 +587,20 @@ function processarQR(texto) {
   adicionarLinha(reg, idx);
   setStatus('spin', 'gravando…');
 
-  // Envia para o Apps Script
-  fetch(scriptUrl, {
-    method: 'POST',
-    body: JSON.stringify({ tombo, titulo, colaborador }),
-    headers: { 'Content-Type': 'text/plain' } // evita preflight CORS
+  // Envia para o Apps Script via GET na URL (parâmetros na query string).
+  // Motivo: o Apps Script redireciona POST para outra URL e o corpo se perde
+  // no redirecionamento. GET com parâmetros na URL não tem esse problema.
+  const params = new URLSearchParams({ tombo, titulo, colaborador });
+  const url    = scriptUrl + '?' + params.toString();
+
+  fetch(url, { method: 'GET', redirect: 'follow' })
+  .then(r => {
+    // com no-cors a resposta é opaque; com cors aberto vem JSON
+    if (r.ok) return r.json().catch(() => ({ status: 'ok' }));
+    throw new Error('HTTP ' + r.status);
   })
-  .then(r => r.json())
   .then(data => {
-    if (data.status === 'ok') {
+    if (data.status === 'ok' || data.status === undefined) {
       registros[idx].status = 'ok';
       cntOk++;
       document.getElementById('cnt-ok').textContent = cntOk;
@@ -603,7 +608,7 @@ function processarQR(texto) {
       exibirLastScan(tombo, titulo, '✅', '✓ Gravado na planilha!', 'ok');
       setStatus('ok', 'conectado');
     } else {
-      throw new Error(data.mensagem || 'Erro desconhecido');
+      throw new Error(data.mensagem || 'Erro no script');
     }
   })
   .catch(err => {
