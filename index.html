@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventário · Biblioteca</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --surface2:  #1f2436;
+      --border:    #2a3047;
+      --gold:      #d4a84b;
+      --gold-dim:  #8a6820;
+      --green:     #3ecf8e;
+      --red:       #f87171;
+      --text:      #e8e2d4;
+      --muted:     #6b7280;
+      --radius:    12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 60% 40% at 80% 0%, rgba(212,168,75,.07) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 10% 100%, rgba(62,207,142,.04) 0%, transparent 70%);
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15,17,23,.8);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      font-size: 1.3rem;
+    }
+    header h1 {
+      font-family: 'Libre Baskerville', serif;
+      font-size: clamp(.95rem, 3.5vw, 1.2rem);
+      color: var(--text);
+      line-height: 1.2;
+    }
+    header p { font-size: .72rem; color: var(--gold); letter-spacing: .1em; text-transform: uppercase; margin-top: 2px; }
+
+    /* ── STATUS PILL ─────────────────────────────────────── */
+    .status-pill {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .75rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 30px;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background .4s;
+    }
+    .dot.ok    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.err   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    .dot.spin  { background: var(--gold);  animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── MAIN ────────────────────────────────────────────── */
+    main { max-width: 620px; margin: 0 auto; padding: 28px 16px 80px; }
+
+    /* ── CARD ────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-family: 'Libre Baskerville', serif;
+      font-size: .95rem;
+      color: var(--gold);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── FORM ────────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type=text] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    input[type=text]::placeholder { color: var(--muted); }
+    input[type=text]:focus { border-color: var(--gold); }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 11px 20px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.96); }
+    .btn-gold   { background: var(--gold); color: #0f1117; }
+    .btn-gold:hover { opacity: .88; }
+    .btn-green  { background: var(--green); color: #0f1117; }
+    .btn-green:hover { opacity: .88; }
+    .btn-ghost  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+    /* ── SCANNER ─────────────────────────────────────────── */
+    #reader {
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface2);
+      border: 1.5px dashed var(--border);
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #reader video { border-radius: 8px; }
+    .scan-placeholder {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px 20px;
+      line-height: 1.8;
+      font-size: .88rem;
+    }
+    .scan-placeholder .icon { font-size: 2.8rem; margin-bottom: 10px; display: block; opacity: .4; }
+
+    /* ── LAST SCAN ───────────────────────────────────────── */
+    #last-scan {
+      display: none;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 14px;
+      border: 1px solid;
+      animation: slideIn .3s ease;
+    }
+    #last-scan.ok  { background: rgba(62,207,142,.08); border-color: rgba(62,207,142,.3); }
+    #last-scan.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.3); }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
+    .ls-row { display: flex; align-items: flex-start; gap: 12px; }
+    .ls-icon { font-size: 1.6rem; line-height: 1; flex-shrink:0; margin-top:2px; }
+    .ls-tombo { font-family: 'Libre Baskerville', serif; font-size: 1.05rem; color: var(--text); }
+    .ls-titulo { font-size: .83rem; color: var(--muted); margin-top: 3px; }
+    .ls-msg   { font-size: .8rem; margin-top: 4px; }
+    .ls-msg.ok  { color: var(--green); }
+    .ls-msg.err { color: var(--red); }
+
+    /* ── COUNTER ─────────────────────────────────────────── */
+    .counters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .count-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .count-num {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 2.2rem;
+      line-height: 1;
+    }
+    .count-num.gold  { color: var(--gold); }
+    .count-num.green { color: var(--green); }
+    .count-num.red   { color: var(--red); }
+    .count-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* ── MANUAL ──────────────────────────────────────────── */
+    #manual-area {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .manual-row { display: flex; gap: 8px; margin-top: 6px; }
+    .manual-row input { flex: 1; }
+
+    /* ── LOG ─────────────────────────────────────────────── */
+    .log-scroll {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    thead { position: sticky; top: 0; background: var(--surface2); }
+    th { padding: 8px 10px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 7px 10px; border-bottom: 1px solid rgba(42,48,71,.5); }
+    tr:last-child td { border-bottom: none; }
+    .tag-ok  { display:inline-block; padding:2px 7px; border-radius:4px; background:rgba(62,207,142,.15); color:var(--green); font-size:.7rem; }
+    .tag-err { display:inline-block; padding:2px 7px; border-radius:4px; background:rgba(248,113,113,.15); color:var(--red);   font-size:.7rem; }
+
+    /* ── SETUP NOTICE ────────────────────────────────────── */
+    .notice {
+      background: rgba(212,168,75,.06);
+      border: 1px solid var(--gold-dim);
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: .84rem;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .notice strong { color: var(--gold); }
+    .notice ol { padding-left: 18px; margin-top: 8px; }
+    .notice li { margin-bottom: 5px; }
+    .notice code {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: .82em;
+      color: var(--gold);
+    }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 22px;
+      border-radius: 30px;
+      font-size: .85rem;
+      box-shadow: 0 6px 30px rgba(0,0,0,.5);
+      transition: transform .3s ease, opacity .3s;
+      opacity: 0;
+      z-index: 999;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ── COLLAB TAG ──────────────────────────────────────── */
+    .collab-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .82rem;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .collab-tag button {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: .75rem; padding: 0 0 0 4px;
+      font-family: 'Outfit', sans-serif;
+    }
+    .collab-tag button:hover { color: var(--red); }
+
+    @media(max-width:440px) {
+      .btn-row { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ═══════════════════════════════════════════════ -->
+<header>
+  <div class="logo">📚</div>
+  <div>
+    <h1>Inventário de Acervo</h1>
+    <p>Leitura em tempo real</p>
+  </div>
+  <div class="status-pill" id="status-pill">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-txt">aguardando</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ CONFIGURAÇÃO DO SCRIPT ════════════════════════════ -->
+  <div class="card" id="card-config">
+    <div class="card-title">⚙️ URL do Apps Script</div>
+    <label for="script-url">Cole aqui a URL do Web App (Google Apps Script)</label>
+    <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/…/exec" />
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="salvarConfig()">Salvar e conectar</button>
+    </div>
+  </div>
+
+  <!-- ══ IDENTIFICAÇÃO ════════════════════════════════════ -->
+  <div class="card" id="card-id" style="display:none">
+    <div class="card-title">👤 Identificação</div>
+    <label for="colaborador">Seu nome</label>
+    <input type="text" id="colaborador" placeholder="Ex.: Maria Souza" autocomplete="name" />
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="confirmarColaborador()">Confirmar e iniciar leitura</button>
+    </div>
+  </div>
+
+  <!-- ══ SCANNER ══════════════════════════════════════════ -->
+  <div class="card" id="card-scanner" style="display:none">
+    <div class="card-title">📷 Leitura de QR Code</div>
+
+    <div class="collab-tag">
+      👤 <strong id="nome-exibido"></strong>
+      <button onclick="trocarColaborador()">trocar</button>
+    </div>
+
+    <div id="reader">
+      <div class="scan-placeholder">
+        <span class="icon">▦</span>
+        Clique em <strong>Iniciar câmera</strong><br>e aponte para o QR Code.
+      </div>
+    </div>
+
+    <div id="last-scan">
+      <div class="ls-row">
+        <div class="ls-icon" id="ls-icon"></div>
+        <div>
+          <div class="ls-tombo" id="ls-tombo"></div>
+          <div class="ls-titulo" id="ls-titulo"></div>
+          <div class="ls-msg"   id="ls-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="counters">
+      <div class="count-box">
+        <div class="count-num gold" id="cnt-total">0</div>
+        <div class="count-label">lidos</div>
+      </div>
+      <div class="count-box">
+        <div class="count-num green" id="cnt-ok">0</div>
+        <div class="count-label">gravados ✓</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-gold"  id="btn-start" onclick="iniciarScanner()">▶ Iniciar câmera</button>
+      <button class="btn btn-ghost" id="btn-stop"  onclick="pararScanner()" style="display:none">⏹ Parar câmera</button>
+      <button class="btn btn-ghost" onclick="toggleManual()">✏️ Digitar</button>
+    </div>
+
+    <div id="manual-area">
+      <label for="manual-qr">Conteúdo do QR Code <span style="color:var(--muted);font-size:.75em">(ex.: 00123|Dom Casmurro)</span></label>
+      <div class="manual-row">
+        <input type="text" id="manual-qr" placeholder="Tombo|Título" />
+        <button class="btn btn-green" onclick="registrarManual()">Gravar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LOG LOCAL ═════════════════════════════════════════ -->
+  <div class="card" id="card-log" style="display:none">
+    <div class="card-title">📋 Registros desta sessão</div>
+    <div class="log-scroll">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Tombo</th><th>Título</th><th>Hora</th><th>Drive</th></tr>
+        </thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ INSTRUÇÕES PARA IMPLANTAÇÃO ══════════════════════ -->
+  <div class="card" id="card-instrucoes">
+    <div class="card-title">🛠 Como configurar (primeira vez)</div>
+    <div class="notice">
+      <strong>1. Crie a planilha Google Sheets</strong><br>
+      Abra o Google Drive → Novo → Planilhas. Copie o ID da URL:<br>
+      <code>docs.google.com/spreadsheets/d/<strong>[ID AQUI]</strong>/edit</code>
+
+      <br><br><strong>2. Crie o Apps Script</strong>
+      <ol>
+        <li>Acesse <code>script.google.com</code> → Novo projeto</li>
+        <li>Apague o conteúdo e cole o código do arquivo <code>codigo-apps-script.gs</code></li>
+        <li>Substitua <code>COLE_AQUI_O_ID_DA_PLANILHA</code> pelo ID copiado</li>
+        <li>Salve (Ctrl+S)</li>
+      </ol>
+
+      <br><strong>3. Publique como Web App</strong>
+      <ol>
+        <li>Clique em <strong>Implantar → Nova implantação</strong></li>
+        <li>Tipo: <strong>App da Web</strong></li>
+        <li>Executar como: <strong>Eu (sua conta)</strong></li>
+        <li>Quem pode acessar: <strong>Qualquer pessoa</strong></li>
+        <li>Clique em <strong>Implantar</strong> e autorize</li>
+        <li>Copie a <strong>URL do Web App</strong></li>
+      </ol>
+
+      <br><strong>4. Configure esta página</strong><br>
+      Cole a URL do Web App no campo acima e clique em <strong>Salvar e conectar</strong>.<br>
+      Feito isso, distribua o link desta página para os colaboradores.
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+const LS_URL  = 'inv_script_url';
+const LS_NOME = 'inv_colaborador';
+
+let scriptUrl   = '';
+let colaborador = '';
+let registros   = [];
+let html5Qr     = null;
+let scannerAtivo = false;
+let ultimoQR    = '';
+let debounce    = null;
+let cntOk       = 0;
+
+// ── INIT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const url  = localStorage.getItem(LS_URL);
+  const nome = localStorage.getItem(LS_NOME);
+
+  if (url) {
+    scriptUrl = url;
+    document.getElementById('script-url').value = url;
+    document.getElementById('card-config').style.display = 'none';
+    setStatus('ok', 'conectado');
+    if (nome) {
+      colaborador = nome;
+      mostrarScanner();
+    } else {
+      document.getElementById('card-id').style.display = 'block';
+    }
+  }
+
+  document.getElementById('colaborador').addEventListener('keydown', e => { if(e.key==='Enter') confirmarColaborador(); });
+  document.getElementById('manual-qr').addEventListener('keydown',  e => { if(e.key==='Enter') registrarManual(); });
+});
+
+// ── CONFIGURAÇÃO ─────────────────────────────────────────
+function salvarConfig() {
+  const val = document.getElementById('script-url').value.trim();
+  if (!val.startsWith('https://script.google.com')) {
+    toast('URL inválida. Deve começar com https://script.google.com'); return;
+  }
+  scriptUrl = val;
+  localStorage.setItem(LS_URL, val);
+  document.getElementById('card-config').style.display = 'none';
+  setStatus('ok', 'conectado');
+  document.getElementById('card-id').style.display = 'block';
+  toast('✓ URL salva!');
+}
+
+// ── IDENTIFICAÇÃO ────────────────────────────────────────
+function confirmarColaborador() {
+  const val = document.getElementById('colaborador').value.trim();
+  if (!val) { toast('Informe seu nome.'); return; }
+  colaborador = val;
+  localStorage.setItem(LS_NOME, val);
+  document.getElementById('card-id').style.display = 'none';
+  mostrarScanner();
+}
+
+function trocarColaborador() {
+  pararScanner();
+  colaborador = '';
+  localStorage.removeItem(LS_NOME);
+  document.getElementById('card-id').style.display = 'block';
+  document.getElementById('card-scanner').style.display = 'none';
+}
+
+function mostrarScanner() {
+  document.getElementById('nome-exibido').textContent = colaborador;
+  document.getElementById('card-scanner').style.display = 'block';
+  document.getElementById('card-log').style.display = 'block';
+}
+
+// ── SCANNER ───────────────────────────────────────────────
+function iniciarScanner() {
+  html5Qr = new Html5Qrcode('reader');
+  html5Qr.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 260, height: 260 } },
+    onQRSucesso,
+    () => {}
+  ).then(() => {
+    scannerAtivo = true;
+    document.getElementById('btn-start').style.display = 'none';
+    document.getElementById('btn-stop').style.display  = 'inline-flex';
+  }).catch(err => toast('Câmera indisponível: ' + err));
+}
+
+function pararScanner() {
+  if (html5Qr && scannerAtivo) {
+    html5Qr.stop().then(() => {
+      html5Qr.clear();
+      scannerAtivo = false;
+      document.getElementById('btn-start').style.display = 'inline-flex';
+      document.getElementById('btn-stop').style.display  = 'none';
+    }).catch(() => {});
+  }
+}
+
+function onQRSucesso(texto) {
+  if (texto === ultimoQR) return;
+  ultimoQR = texto;
+  clearTimeout(debounce);
+  debounce = setTimeout(() => { ultimoQR = ''; }, 3000);
+  processarQR(texto);
+}
+
+// ── PROCESSAR QR ─────────────────────────────────────────
+function processarQR(texto) {
+  const partes = texto.split('|');
+  const tombo  = partes[0].trim();
+  const titulo = partes[1] ? partes[1].trim() : '—';
+
+  const agora = new Date();
+  const hora  = agora.toLocaleTimeString('pt-BR');
+
+  const reg = { tombo, titulo, colaborador, hora, status: 'enviando' };
+  registros.push(reg);
+  const idx = registros.length - 1;
+
+  // UI imediata
+  document.getElementById('cnt-total').textContent = registros.length;
+  exibirLastScan(tombo, titulo, '⏳', 'Gravando no Drive…', null);
+  adicionarLinha(reg, idx);
+  setStatus('spin', 'gravando…');
+
+  // Envia para o Apps Script
+  fetch(scriptUrl, {
+    method: 'POST',
+    body: JSON.stringify({ tombo, titulo, colaborador }),
+    headers: { 'Content-Type': 'text/plain' } // evita preflight CORS
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      registros[idx].status = 'ok';
+      cntOk++;
+      document.getElementById('cnt-ok').textContent = cntOk;
+      atualizarStatusLinha(idx, 'ok');
+      exibirLastScan(tombo, titulo, '✅', '✓ Gravado na planilha!', 'ok');
+      setStatus('ok', 'conectado');
+    } else {
+      throw new Error(data.mensagem || 'Erro desconhecido');
+    }
+  })
+  .catch(err => {
+    registros[idx].status = 'erro';
+    atualizarStatusLinha(idx, 'erro');
+    exibirLastScan(tombo, titulo, '❌', 'Falha: ' + err.message, 'err');
+    setStatus('err', 'erro de rede');
+    toast('⚠ Falha ao gravar tombo ' + tombo);
+  });
+}
+
+// ── UI ────────────────────────────────────────────────────
+function exibirLastScan(tombo, titulo, icon, msg, tipo) {
+  const el = document.getElementById('last-scan');
+  el.style.display = 'block';
+  el.className = tipo || '';
+  document.getElementById('ls-icon').textContent   = icon;
+  document.getElementById('ls-tombo').textContent  = 'Tombo ' + tombo;
+  document.getElementById('ls-titulo').textContent = titulo;
+  const msgEl = document.getElementById('ls-msg');
+  msgEl.textContent = msg;
+  msgEl.className   = 'ls-msg ' + (tipo || '');
+}
+
+function adicionarLinha(reg, idx) {
+  const tbody = document.getElementById('log-tbody');
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + idx;
+  tr.innerHTML = `
+    <td>${registros.length}</td>
+    <td><strong>${reg.tombo}</strong></td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${reg.titulo}</td>
+    <td style="white-space:nowrap;font-size:.75rem">${reg.hora}</td>
+    <td id="status-${idx}"><span class="tag-ok" style="opacity:.4">…</span></td>
+  `;
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+
+function atualizarStatusLinha(idx, status) {
+  const el = document.getElementById('status-' + idx);
+  if (!el) return;
+  el.innerHTML = status === 'ok'
+    ? '<span class="tag-ok">✓ Drive</span>'
+    : '<span class="tag-err">✗ falha</span>';
+}
+
+// ── MANUAL ────────────────────────────────────────────────
+function toggleManual() {
+  const el = document.getElementById('manual-area');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function registrarManual() {
+  const val = document.getElementById('manual-qr').value.trim();
+  if (!val) { toast('Digite o conteúdo do QR Code.'); return; }
+  processarQR(val);
+  document.getElementById('manual-qr').value = '';
+}
+
+// ── STATUS PILL ───────────────────────────────────────────
+function setStatus(tipo, txt) {
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-txt');
+  dot.className = 'dot ' + tipo;
+  lbl.textContent = txt;
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 3000);
+}
+</script>
+</body>
+</html>
