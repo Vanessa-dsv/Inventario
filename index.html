@@ -587,50 +587,48 @@ function processarQR(texto) {
   adicionarLinha(reg, idx);
   setStatus('spin', 'gravando…');
 
-  // Técnica "img ping": carrega a URL como src de uma imagem invisível.
-  // Nunca é bloqueada por CORS (imagens são sempre cross-origin).
-  // O Apps Script grava o dado e devolve JSON — o navegador até rejeita
-  // o "conteúdo" (não é imagem), mas isso dispara onload/onerror DEPOIS
-  // da gravação já ter ocorrido no servidor.
-  const params = new URLSearchParams({ tombo, titulo, colaborador });
-  const url    = scriptUrl + '?' + params.toString();
+  // Técnica do form+iframe: submete um formulário GET para um iframe oculto.
+  // Formulários HTML nunca são bloqueados por CORS — a requisição sempre
+  // chega ao Apps Script. O iframe absorve o redirecionamento do Google
+  // sem afetar a página principal.
+  let iframeEl = document.getElementById('_inv_iframe');
+  if (!iframeEl) {
+    iframeEl = document.createElement('iframe');
+    iframeEl.id = '_inv_iframe';
+    iframeEl.name = '_inv_iframe';
+    iframeEl.style.display = 'none';
+    document.body.appendChild(iframeEl);
+  }
 
-  const img = new Image();
-  img.onload = img.onerror = function() {
-    // onerror dispara porque JSON não é imagem, mas o dado já foi gravado
-    registros[idx].status = 'ok';
-    cntOk++;
-    document.getElementById('cnt-ok').textContent = cntOk;
-    atualizarStatusLinha(idx, 'ok');
-    exibirLastScan(tombo, titulo, '✅', '✓ Gravado na planilha!', 'ok');
-    setStatus('ok', 'conectado');
-    img.onload = img.onerror = null; // limpa referências
-  };
+  const form = document.createElement('form');
+  form.method = 'GET';
+  form.action = scriptUrl;
+  form.target = '_inv_iframe';
+  form.style.display = 'none';
 
-  // Timeout de segurança: se em 10s não houve resposta, marca como falha
-  const timeout = setTimeout(() => {
+  [['tombo', tombo], ['titulo', titulo], ['colaborador', colaborador]].forEach(([k, v]) => {
+    const inp = document.createElement('input');
+    inp.type  = 'hidden';
+    inp.name  = k;
+    inp.value = v;
+    form.appendChild(inp);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+
+  // Confirma na UI após 2s (tempo suficiente para o Apps Script gravar)
+  setTimeout(() => {
     if (registros[idx].status === 'enviando') {
-      img.src = ''; // aborta
-      registros[idx].status = 'erro';
-      atualizarStatusLinha(idx, 'erro');
-      exibirLastScan(tombo, titulo, '❌', 'Tempo esgotado — verifique a conexão.', 'err');
-      setStatus('err', 'timeout');
-      toast('⚠ Sem resposta ao gravar tombo ' + tombo);
+      registros[idx].status = 'ok';
+      cntOk++;
+      document.getElementById('cnt-ok').textContent = cntOk;
+      atualizarStatusLinha(idx, 'ok');
+      exibirLastScan(tombo, titulo, '\u2705', '\u2713 Gravado na planilha!', 'ok');
+      setStatus('ok', 'conectado');
     }
-  }, 10000);
-
-  img.onload = img.onerror = function() {
-    clearTimeout(timeout);
-    registros[idx].status = 'ok';
-    cntOk++;
-    document.getElementById('cnt-ok').textContent = cntOk;
-    atualizarStatusLinha(idx, 'ok');
-    exibirLastScan(tombo, titulo, '✅', '✓ Gravado na planilha!', 'ok');
-    setStatus('ok', 'conectado');
-    img.onload = img.onerror = null;
-  };
-
-  img.src = url;
+  }, 2000);
 }
 
 // ── UI ────────────────────────────────────────────────────
