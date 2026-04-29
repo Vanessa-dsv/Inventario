@@ -338,19 +338,9 @@
 
 <main>
 
-  <!-- ══ CONFIGURAÇÃO DO SCRIPT ════════════════════════════ -->
-  <div class="card" id="card-config">
-    <div class="card-title">⚙️ URL do Apps Script</div>
-    <label for="script-url">Cole aqui a URL do Web App (Google Apps Script)</label>
-    <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/…/exec" />
-    <div class="btn-row">
-      <button class="btn btn-gold" onclick="salvarConfig()">Salvar e conectar</button>
-    </div>
-  </div>
-
   <!-- ══ IDENTIFICAÇÃO ════════════════════════════════════ -->
-  <div class="card" id="card-id" style="display:none">
-    <div class="card-title">👤 Identificação Teste de Versão</div>
+  <div class="card" id="card-id">
+    <div class="card-title">👤 Identificação</div>
     <label for="colaborador">Seu nome</label>
     <input type="text" id="colaborador" placeholder="Ex.: Maria Souza" autocomplete="name" />
     <div class="btn-row">
@@ -424,37 +414,6 @@
     </div>
   </div>
 
-  <!-- ══ INSTRUÇÕES PARA IMPLANTAÇÃO ══════════════════════ -->
-  <div class="card" id="card-instrucoes">
-    <div class="card-title">🛠 Como configurar (primeira vez)</div>
-    <div class="notice">
-      <strong>1. Crie a planilha Google Sheets</strong><br>
-      Abra o Google Drive → Novo → Planilhas. Copie o ID da URL:<br>
-      <code>docs.google.com/spreadsheets/d/<strong>[ID AQUI]</strong>/edit</code>
-
-      <br><br><strong>2. Crie o Apps Script</strong>
-      <ol>
-        <li>Acesse <code>script.google.com</code> → Novo projeto</li>
-        <li>Apague o conteúdo e cole o código do arquivo <code>codigo-apps-script.gs</code></li>
-        <li>Substitua <code>COLE_AQUI_O_ID_DA_PLANILHA</code> pelo ID copiado</li>
-        <li>Salve (Ctrl+S)</li>
-      </ol>
-
-      <br><strong>3. Publique como Web App</strong>
-      <ol>
-        <li>Clique em <strong>Implantar → Nova implantação</strong></li>
-        <li>Tipo: <strong>App da Web</strong></li>
-        <li>Executar como: <strong>Eu (sua conta)</strong></li>
-        <li>Quem pode acessar: <strong>Qualquer pessoa</strong></li>
-        <li>Clique em <strong>Implantar</strong> e autorize</li>
-        <li>Copie a <strong>URL do Web App</strong></li>
-      </ol>
-
-      <br><strong>4. Configure esta página</strong><br>
-      Cole a URL do Web App no campo acima e clique em <strong>Salvar e conectar</strong>.<br>
-      Feito isso, distribua o link desta página para os colaboradores.
-    </div>
-  </div>
 
 </main>
 
@@ -462,54 +421,32 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────
-const LS_URL  = 'inv_script_url';
-const LS_NOME = 'inv_colaborador';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-d15luvxsBYu-1x1R3Ki2Fw2dKVTnJ_HfKkNukwt9_2OYALZofIXCi7a9CXe6ZuOz/exec';
+const LS_NOME    = 'inv_colaborador';
 
-let scriptUrl   = '';
-let colaborador = '';
-let registros   = [];
-let html5Qr     = null;
+let scriptUrl    = SCRIPT_URL;
+let colaborador  = '';
+let registros    = [];
+let html5Qr      = null;
 let scannerAtivo = false;
-let ultimoQR    = '';
-let debounce    = null;
-let cntOk       = 0;
+let ultimoQR     = '';
+let debounce     = null;
+let cntOk        = 0;
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  const url  = localStorage.getItem(LS_URL);
-  const nome = localStorage.getItem(LS_NOME);
+  setStatus('ok', 'conectado');
 
-  if (url) {
-    scriptUrl = url;
-    document.getElementById('script-url').value = url;
-    document.getElementById('card-config').style.display = 'none';
-    setStatus('ok', 'conectado');
-    if (nome) {
-      colaborador = nome;
-      mostrarScanner();
-    } else {
-      document.getElementById('card-id').style.display = 'block';
-    }
+  const nome = localStorage.getItem(LS_NOME);
+  if (nome) {
+    colaborador = nome;
+    mostrarScanner();
+    document.getElementById('card-id').style.display = 'none';
   }
 
   document.getElementById('colaborador').addEventListener('keydown', e => { if(e.key==='Enter') confirmarColaborador(); });
   document.getElementById('manual-qr').addEventListener('keydown',  e => { if(e.key==='Enter') registrarManual(); });
 });
-
-// ── CONFIGURAÇÃO ─────────────────────────────────────────
-function salvarConfig() {
-//  const val = document.getElementById('script-url').value.trim();
-  const val = 'https://script.google.com/macros/s/AKfycbx-d15luvxsBYu-1x1R3Ki2Fw2dKVTnJ_HfKkNukwt9_2OYALZofIXCi7a9CXe6ZuOz/exec';
-  if (!val.startsWith('https://script.google.com')) {
-    toast('URL inválida. Deve começar com https://script.google.com'); return;
-  }
-  scriptUrl = val;
-  localStorage.setItem(LS_URL, val);
-  document.getElementById('card-config').style.display = 'none';
-  setStatus('ok', 'conectado');
-  document.getElementById('card-id').style.display = 'block';
-  toast('✓ URL salva!');
-}
 
 // ── IDENTIFICAÇÃO ────────────────────────────────────────
 function confirmarColaborador() {
