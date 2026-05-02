@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acervo – Biblioteca Platão</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+
+    /* ============================================================
+       DIAGNÓSTICO TEMPORÁRIO
+       Exibe na tela os valores reais de largura dentro do iframe
+       do Apps Script. Remover após confirmar o breakpoint correto.
+    ============================================================ */
+    #diagnostico {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    /* ============================================================
+       DESIGN TOKENS – Paleta verde / cinza / branco
+    ============================================================ */
+    :root {
+      --primary        : #3a7d30;
+      --primary-light  : #e8f5e3;
+      --primary-border : #c3e0bc;
+      --bg             : #f8fcf7;
+      --surface        : #fff;
+      --surface-alt    : #f3faf1;
+      --text           : #2d3f2b;
+      --sub            : #6b8c66;
+      --border         : #d4e6d0;
+      --hover          : #edf7ea;
+      --font           : 'Inter', 'Segoe UI', Arial, sans-serif;
+      --radius-sm      : 8px;
+      --radius-md      : 12px;
+      --shadow-sm      : 0 1px 4px rgba(58,125,48,0.07);
+
+      /* Tamanhos de fonte base – aumentados para mobile */
+      --fz-base        : 15px;
+      --fz-sm          : 13px;
+      --fz-xs          : 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: var(--fz-base);
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       LOADING
+    ============================================================ */
+    #loading {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      z-index: 100; transition: opacity 0.4s;
+    }
+    #loading.oculto { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid var(--primary-border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: girar 0.8s linear infinite;
+    }
+    .loading-texto { font-size: var(--fz-base); color: var(--sub); font-weight: 500; }
+
+    /* ============================================================
+       HEADER
+    ============================================================ */
+    header {
+      background: var(--surface);
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: var(--shadow-sm);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 40px; height: 40px;
+      background: var(--primary-light);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; border: 1px solid var(--primary-border); flex-shrink: 0;
+    }
+    .header-info h1 { font-size: 17px; font-weight: 600; color: var(--primary); line-height: 1.2; }
+    .header-info p  { font-size: var(--fz-xs); color: var(--sub); }
+    #totalGeral {
+      background: var(--primary-light); color: var(--primary);
+      font-size: var(--fz-sm); font-weight: 600;
+      padding: 5px 14px; border-radius: 20px;
+      border: 1px solid var(--primary-border); white-space: nowrap;
+    }
+    main { max-width: 1200px; margin: auto; padding: 20px 16px; }
+
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    .filtros {
+      background: var(--surface); padding: 16px 20px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 14px; box-shadow: var(--shadow-sm);
+    }
+    .busca-wrap { grid-column: 1 / -1; position: relative; }
+    .busca-wrap::before {
+      content: "🔍"; position: absolute; left: 12px; top: 50%;
+      transform: translateY(-50%); font-size: 14px; pointer-events: none;
+    }
+    .busca-wrap input { padding-left: 38px !important; }
+    .campo label {
+      font-size: var(--fz-xs); font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 5px;
+    }
+    .campo input, .campo select {
+      width: 100%; padding: 10px 12px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      font-size: var(--fz-sm); font-family: var(--font); color: var(--text);
+      background: var(--surface); outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .campo input:focus, .campo select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(58,125,48,0.12);
+    }
+    .campo input::placeholder { color: #a8c4a4; }
+    .btn-wrap { display: flex; align-items: flex-end; }
+    .btn-limpar {
+      width: 100%; padding: 10px 14px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      cursor: pointer; background: var(--surface);
+      font-size: var(--fz-sm); font-family: var(--font);
+      color: var(--sub); font-weight: 500;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-limpar:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary-border); }
+
+    /* ============================================================
+       STATUS BAR
+    ============================================================ */
+    .status-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: var(--fz-xs); color: var(--sub); margin-bottom: 10px; padding: 0 2px;
+    }
+    #infoResultados::before { content: "🔎 "; }
+
+    /* ============================================================
+       TABELA
+    ============================================================ */
+    .scroll-x {
+      background: var(--surface); border-radius: var(--radius-md);
+      border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky; top: 0; background: var(--surface-alt);
+      padding: 11px 14px; text-align: left; cursor: pointer;
+      user-select: none; white-space: nowrap;
+      font-size: var(--fz-xs); font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border); transition: color 0.15s;
+    }
+    thead th:hover { color: var(--primary); }
+    th.asc::after  { content: " ▲"; color: var(--primary); }
+    th.desc::after { content: " ▼"; color: var(--primary); }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: var(--fz-sm); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--hover); }
+    .tombo-badge {
+      background: var(--primary-light); color: var(--primary);
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; border: 1px solid var(--primary-border); white-space: nowrap;
+    }
+
+    /* ============================================================
+       CARDS – ocultos por padrão, ativados pela classe JS no body
+    ============================================================ */
+    .cards { display: none; }
+
+    /* ============================================================
+       MODO MOBILE
+       A classe .mobile é adicionada ao <body> pelo JavaScript
+       quando window.innerWidth <= BREAKPOINT.
+       Todos os ajustes de mobile ficam aqui, usando o seletor
+       body.mobile em vez de @media, porque o Apps Script serve
+       a página num iframe com viewport fixa.
+    ============================================================ */
+    body.mobile header    { padding: 10px 14px; }
+    body.mobile .header-info p { display: none; }
+    body.mobile main      { padding: 12px 10px; }
+    body.mobile .scroll-x { display: none; }
+    body.mobile .cards    { display: flex; flex-direction: column; gap: 10px; }
+
+    /* Card individual */
+    .card {
+      background: var(--surface); padding: 14px 16px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .card-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .card-titulo { font-weight: 600; font-size: 16px; color: var(--primary); line-height: 1.3; }
+    .card-divider { height: 1px; background: var(--border); margin: 8px 0; }
+    .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .card-meta-item { font-size: 14px; color: var(--sub); }
+    .card-meta-item b {
+      color: var(--text); font-weight: 600; display: block;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+    }
+
+    /* ============================================================
+       PAGINAÇÃO
+    ============================================================ */
+    .paginacao { display: flex; justify-content: center; gap: 5px; padding: 14px; flex-wrap: wrap; }
+    .paginacao button {
+      padding: 8px 14px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; font-size: var(--fz-sm); font-family: var(--font);
+      color: var(--sub); font-weight: 500; min-width: 40px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .paginacao button:hover:not(:disabled) { background: var(--primary-light); color: var(--primary); border-color: var(--primary-border); }
+    .paginacao button.ativa { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .paginacao button:disabled { opacity: .35; cursor: default; }
+
+    /* ============================================================
+       ANIMAÇÕES
+    ============================================================ */
+    @keyframes girar { to { transform: rotate(360deg); } }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fadeIn { animation: fadeIn 0.25s ease; }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <span class="loading-texto">Carregando acervo…</span>
+  </div>
+
+  <!-- ============================================================
+       PAINEL DE DIAGNÓSTICO TEMPORÁRIO
+       Mostra os valores reais de largura dentro do iframe.
+       REMOVA este bloco após confirmar o breakpoint correto.
+  ============================================================ -->
+  <div id="diagnostico">
+    <strong>🔧 Diagnóstico de layout (remover depois)</strong><br>
+    window.innerWidth: <span id="d-inner"></span><br>
+    document.body.clientWidth: <span id="d-client"></span><br>
+    screen.width: <span id="d-screen"></span><br>
+    Classe no body: <span id="d-classe"></span>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-brand">
+      <div class="header-icon">📚</div>
+      <div class="header-info">
+        <h1>Biblioteca Platão</h1>
+        <p>Acervo Digital</p>
+      </div>
+    </div>
+    <span id="totalGeral"></span>
+  </header>
+
+  <main>
+
+    <div class="filtros">
+      <div class="campo busca-wrap">
+        <label for="busca">Busca</label>
+        <input id="busca" type="search" placeholder="Buscar por título, autor, editora…" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="filtroAutor">Autor</label>
+        <select id="filtroAutor"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroEditora">Editora</label>
+        <select id="filtroEditora"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroGrupo">Grupo</label>
+        <select id="filtroGrupo"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroCategoria">Categoria</label>
+        <select id="filtroCategoria"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroAno">Ano</label>
+        <select id="filtroAno"><option value="">Todos</option></select>
+      </div>
+      <div class="btn-wrap">
+        <button class="btn-limpar" onclick="limparFiltros()">✕ Limpar filtros</button>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span id="infoResultados"></span>
+      <span id="infoPagina"></span>
+    </div>
+
+    <div class="scroll-x">
+      <table>
+        <thead id="cabecalho"></thead>
+        <tbody id="corpo"></tbody>
+      </table>
+    </div>
+
+    <div id="cardsContainer" class="cards"></div>
+    <div class="paginacao" id="paginacao"></div>
+
+  </main>
+
+  <script>
+
+    /* ============================================================
+       CONFIGURAÇÃO
+    ============================================================ */
+    const COLS = [
+      { idx:  1, label: 'Tombo'         },
+      { idx:  2, label: 'Autor'         },
+      { idx:  3, label: 'Título'        },
+      { idx:  5, label: 'Editora'       },
+      { idx:  6, label: 'Ano'           },
+      { idx: 10, label: 'Classificação' },
+      { idx: 11, label: 'Grupo'         },
+      { idx: 13, label: 'Categoria'     }
+    ];
+    const IDX_AUTOR     = 2,  IDX_EDITORA   = 5;
+    const IDX_ANO       = 6,  IDX_GRUPO     = 11;
+    const IDX_CATEGORIA = 13, POR_PAGINA    = 50;
+
+    /*
+      BREAKPOINT: valor usado para decidir mobile vs desktop.
+      Após ver o diagnóstico no celular, ajuste este valor se necessário.
+      Se window.innerWidth no celular mostrar ex: 980, mude para 1024.
+    */
+    const BREAKPOINT = 768;
+
+    /* ============================================================
+       ESTADO
+    ============================================================ */
+    let dados = [], filtrados = [], pagina = 1;
+    let ordenacao = { col: -1, dir: 1 };
+
+    /* ============================================================
+       DETECÇÃO DE MOBILE
+       Adiciona/remove a classe "mobile" no <body>.
+       Todo o CSS de mobile usa o seletor body.mobile em vez de
+       @media, porque @media não funciona corretamente dentro do
+       iframe do Apps Script.
+    ============================================================ */
+    function atualizarLayout() {
+      const w       = window.innerWidth;
+      const cliente = document.body.clientWidth;
+      const tela    = screen.width;
+      const isMob   = w <= BREAKPOINT || cliente <= BREAKPOINT;
+
+      document.body.classList.toggle('mobile', isMob);
+
+      // Atualiza painel de diagnóstico
+      const di = document.getElementById('d-inner');
+      const dc = document.getElementById('d-client');
+      const ds = document.getElementById('d-screen');
+      const dk = document.getElementById('d-classe');
+      if (di) di.textContent = w + 'px';
+      if (dc) dc.textContent = cliente + 'px';
+      if (ds) ds.textContent = tela + 'px';
+      if (dk) dk.textContent = document.body.className || '(nenhuma)';
+    }
+
+    window.addEventListener('resize', debounce(atualizarLayout, 150));
+
+    /* ============================================================
+       INICIALIZAÇÃO
+    ============================================================ */
+    window.onload = function () {
+      atualizarLayout();
+      google.script.run
+        .withSuccessHandler(init)
+        .getDados();
+    };
+
+    function init(d) {
+      const loading = document.getElementById('loading');
+      if (loading) loading.classList.add('oculto');
+      if (!d || d.length === 0) return;
+
+      dados = d.slice(1).filter(r => r[1]);
+
+      const totalEl = document.getElementById('totalGeral');
+      if (totalEl) totalEl.textContent = dados.length + ' obras';
+
+      montarCabecalho();
+      popular('filtroAutor',     IDX_AUTOR);
+      popular('filtroEditora',   IDX_EDITORA);
+      popular('filtroGrupo',     IDX_GRUPO);
+      popular('filtroCategoria', IDX_CATEGORIA);
+      popular('filtroAno',       IDX_ANO);
+
+      document.getElementById('busca')
+        .addEventListener('input', debounce(aplicar, 300));
+      document.querySelectorAll('select')
+        .forEach(s => s.addEventListener('change', aplicar));
+
+      aplicar();
+    }
+
+    /* ============================================================
+       CABEÇALHO DA TABELA
+    ============================================================ */
+    function montarCabecalho() {
+      const cab = document.getElementById('cabecalho');
+      cab.innerHTML = '';
+      const tr = document.createElement('tr');
+      COLS.forEach(c => {
+        const th = document.createElement('th');
+        th.textContent = c.label;
+        th.onclick = () => {
+          ordenacao.col === c.idx ? ordenacao.dir *= -1
+                                  : (ordenacao.col = c.idx, ordenacao.dir = 1);
+          ordenarDados(); render();
+        };
+        tr.appendChild(th);
+      });
+      cab.appendChild(tr);
+    }
+
+    /* ============================================================
+       POPULAR SELECTS
+    ============================================================ */
+    function popular(id, col) {
+      const s = document.getElementById(id);
+      if (!s) return;
+      [...new Set(dados.map(r => r[col]).filter(Boolean))]
+        .sort().forEach(v => s.add(new Option(v, v)));
+    }
+
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    function aplicar() {
+      const busca = (document.getElementById('busca')?.value ?? '').toLowerCase();
+      const fA    = document.getElementById('filtroAutor')?.value     ?? '';
+      const fE    = document.getElementById('filtroEditora')?.value   ?? '';
+      const fG    = document.getElementById('filtroGrupo')?.value     ?? '';
+      const fC    = document.getElementById('filtroCategoria')?.value ?? '';
+      const fAno  = document.getElementById('filtroAno')?.value       ?? '';
+
+      filtrados = dados.filter(r => {
+        if (busca && !r.join(' ').toLowerCase().includes(busca)) return false;
+        if (fA   && r[IDX_AUTOR]     != fA)   return false;
+        if (fE   && r[IDX_EDITORA]   != fE)   return false;
+        if (fG   && r[IDX_GRUPO]     != fG)   return false;
+        if (fC   && r[IDX_CATEGORIA] != fC)   return false;
+        if (fAno && r[IDX_ANO]       != fAno) return false;
+        return true;
+      });
+
+      pagina = 1;
+      if (ordenacao.col >= 0) ordenarDados();
+      render();
+    }
+
+    /* ============================================================
+       ORDENAÇÃO
+    ============================================================ */
+    function ordenarDados() {
+      filtrados.sort((a, b) => {
+        const va = a[ordenacao.col], vb = b[ordenacao.col];
+        if (!isNaN(va) && !isNaN(vb)) return (Number(va) - Number(vb)) * ordenacao.dir;
+        return String(va).localeCompare(String(vb), 'pt') * ordenacao.dir;
+      });
+    }
+
+    /* ============================================================
+       RENDERIZAÇÃO
+       Constrói sempre tabela + cards.
+       CSS com seletor body.mobile controla qual é visível.
+    ============================================================ */
+    function render() {
+      const corpo = document.getElementById('corpo');
+      const cards = document.getElementById('cardsContainer');
+      if (!corpo || !cards) return;
+
+      corpo.innerHTML = '';
+      cards.innerHTML = '';
+
+      const ini  = (pagina - 1) * POR_PAGINA;
+      const page = filtrados.slice(ini, ini + POR_PAGINA);
+      const frag = document.createDocumentFragment();
+
+      page.forEach(r => {
+
+        /* -- CARD -- */
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const hdr = document.createElement('div');
+        hdr.className = 'card-header';
+
+        const badge = document.createElement('span');
+        badge.className = 'tombo-badge';
+        badge.textContent = r[COLS[0].idx] || '—';
+
+        const titulo = document.createElement('div');
+        titulo.className = 'card-titulo';
+        titulo.textContent = r[COLS[2].idx] || '';
+
+        hdr.appendChild(badge);
+        hdr.appendChild(titulo);
+        card.appendChild(hdr);
+
+        const div = document.createElement('div');
+        div.className = 'card-divider';
+        card.appendChild(div);
+
+        const meta = document.createElement('div');
+        meta.className = 'card-meta';
+        COLS.forEach((col, i) => {
+          if (i === 0 || i === 2) return;
+          const item = document.createElement('div');
+          item.className = 'card-meta-item';
+          item.innerHTML = `<b>${col.label}</b>${r[col.idx] || '—'}`;
+          meta.appendChild(item);
+        });
+        card.appendChild(meta);
+        cards.appendChild(card);
+
+        /* -- LINHA DE TABELA -- */
+        const tr = document.createElement('tr');
+        COLS.forEach((col, i) => {
+          const td = document.createElement('td');
+          if (i === 0) {
+            const b = document.createElement('span');
+            b.className = 'tombo-badge';
+            b.textContent = r[col.idx] || '';
+            td.appendChild(b);
+          } else {
+            td.textContent = r[col.idx] || '';
+          }
+          tr.appendChild(td);
+        });
+        frag.appendChild(tr);
+      });
+
+      corpo.appendChild(frag);
+
+      [corpo, cards].forEach(el => {
+        el.classList.remove('fadeIn');
+        void el.offsetWidth;
+        el.classList.add('fadeIn');
+      });
+
+      const res = document.getElementById('infoResultados');
+      if (res) res.textContent = filtrados.length + ' resultados';
+
+      const pag = document.getElementById('infoPagina');
+      if (pag) pag.textContent = `Mostrando ${ini + 1}–${ini + page.length}`;
+
+      // Atualiza diagnóstico a cada render
+      atualizarLayout();
+
+      paginar();
+      atualizarOrdenacaoVisual();
+    }
+
+    /* ============================================================
+       PAGINAÇÃO
+    ============================================================ */
+    function paginar() {
+      const paginacao = document.getElementById('paginacao');
+      if (!paginacao) return;
+      const total = Math.ceil(filtrados.length / POR_PAGINA);
+      paginacao.innerHTML = '';
+      const criarBtn = (t, p, d = false) => {
+        const b = document.createElement('button');
+        b.textContent = t;
+        if (d) b.disabled = true;
+        b.onclick = () => { pagina = p; render(); scrollTo(0, 0); };
+        return b;
+      };
+      paginacao.appendChild(criarBtn('«', pagina - 1, pagina === 1));
+      const ini = Math.max(1, pagina - 2);
+      const fim = Math.min(total, ini + 4);
+      for (let i = ini; i <= fim; i++) {
+        const b = criarBtn(i, i);
+        if (i === pagina) b.classList.add('ativa');
+        paginacao.appendChild(b);
+      }
+      if (fim < total) {
+        paginacao.appendChild(criarBtn('…', pagina, true));
+        paginacao.appendChild(criarBtn(total, total));
+      }
+      paginacao.appendChild(criarBtn('»', pagina + 1, pagina === total));
+    }
+
+    /* ============================================================
+       ORDENAÇÃO VISUAL
+    ============================================================ */
+    function atualizarOrdenacaoVisual() {
+      document.querySelectorAll('thead th').forEach((th, i) => {
+        th.classList.remove('asc', 'desc');
+        if (COLS[i] && COLS[i].idx === ordenacao.col)
+          th.classList.add(ordenacao.dir === 1 ? 'asc' : 'desc');
+      });
+    }
+
+    /* ============================================================
+       LIMPAR FILTROS
+    ============================================================ */
+    function limparFiltros() {
+      document.querySelectorAll('input, select').forEach(el => (el.value = ''));
+      pagina = 1;
+      aplicar();
+    }
+
+    /* ============================================================
+       DEBOUNCE
+    ============================================================ */
+    function debounce(fn, delay) {
+      let t;
+      return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); };
+    }
+
+  </script>
+</body>
+</html>
