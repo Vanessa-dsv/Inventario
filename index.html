@@ -1,637 +1,651 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventário · Biblioteca</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acervo – Biblioteca Platão</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
   <style>
+
+    /* ============================================================
+       DIAGNÓSTICO TEMPORÁRIO
+       Exibe na tela os valores reais de largura dentro do iframe
+       do Apps Script. Remover após confirmar o breakpoint correto.
+    ============================================================ */
+    #diagnostico {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    /* ============================================================
+       DESIGN TOKENS – Paleta verde / cinza / branco
+    ============================================================ */
     :root {
-      --bg:        #0f1117;
-      --surface:   #181c27;
-      --surface2:  #1f2436;
-      --border:    #2a3047;
-      --gold:      #d4a84b;
-      --gold-dim:  #8a6820;
-      --green:     #3ecf8e;
-      --red:       #f87171;
-      --text:      #e8e2d4;
-      --muted:     #6b7280;
-      --radius:    12px;
+      --primary        : #3a7d30;
+      --primary-light  : #e8f5e3;
+      --primary-border : #c3e0bc;
+      --bg             : #f8fcf7;
+      --surface        : #fff;
+      --surface-alt    : #f3faf1;
+      --text           : #2d3f2b;
+      --sub            : #6b8c66;
+      --border         : #d4e6d0;
+      --hover          : #edf7ea;
+      --font           : 'Inter', 'Segoe UI', Arial, sans-serif;
+      --radius-sm      : 8px;
+      --radius-md      : 12px;
+      --shadow-sm      : 0 1px 4px rgba(58,125,48,0.07);
+
+      /* Tamanhos de fonte base – aumentados para mobile */
+      --fz-base        : 15px;
+      --fz-sm          : 13px;
+      --fz-xs          : 12px;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Outfit', sans-serif;
+      font-family: var(--font);
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
-      background-image:
-        radial-gradient(ellipse 60% 40% at 80% 0%, rgba(212,168,75,.07) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 60% at 10% 100%, rgba(62,207,142,.04) 0%, transparent 70%);
+      font-size: var(--fz-base);
+      line-height: 1.5;
     }
 
-    /* ── HEADER ─────────────────────────────────────────── */
-    header {
-      border-bottom: 1px solid var(--border);
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: rgba(15,17,23,.8);
-      backdrop-filter: blur(8px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    /* ============================================================
+       LOADING
+    ============================================================ */
+    #loading {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      z-index: 100; transition: opacity 0.4s;
     }
-    .logo {
-      width: 42px; height: 42px;
-      background: linear-gradient(135deg, var(--gold-dim), var(--gold));
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      font-size: 1.3rem;
-    }
-    header h1 {
-      font-family: 'Libre Baskerville', serif;
-      font-size: clamp(.95rem, 3.5vw, 1.2rem);
-      color: var(--text);
-      line-height: 1.2;
-    }
-    header p { font-size: .72rem; color: var(--gold); letter-spacing: .1em; text-transform: uppercase; margin-top: 2px; }
-
-    /* ── STATUS PILL ─────────────────────────────────────── */
-    .status-pill {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: .75rem;
-      color: var(--muted);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 5px 12px;
-      border-radius: 30px;
-      white-space: nowrap;
-    }
-    .dot {
-      width: 7px; height: 7px;
+    #loading.oculto { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid var(--primary-border);
+      border-top-color: var(--primary);
       border-radius: 50%;
-      background: var(--muted);
-      transition: background .4s;
+      animation: girar 0.8s linear infinite;
     }
-    .dot.ok    { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .dot.err   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
-    .dot.spin  { background: var(--gold);  animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .loading-texto { font-size: var(--fz-base); color: var(--sub); font-weight: 500; }
 
-    /* ── MAIN ────────────────────────────────────────────── */
-    main { max-width: 620px; margin: 0 auto; padding: 28px 16px 80px; }
-
-    /* ── CARD ────────────────────────────────────────────── */
-    .card {
+    /* ============================================================
+       HEADER
+    ============================================================ */
+    header {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px 20px;
-      margin-bottom: 16px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: var(--shadow-sm);
+      position: sticky; top: 0; z-index: 10;
     }
-    .card-title {
-      font-family: 'Libre Baskerville', serif;
-      font-size: .95rem;
-      color: var(--gold);
-      margin-bottom: 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 40px; height: 40px;
+      background: var(--primary-light);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; border: 1px solid var(--primary-border); flex-shrink: 0;
     }
-    .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+    .header-info h1 { font-size: 17px; font-weight: 600; color: var(--primary); line-height: 1.2; }
+    .header-info p  { font-size: var(--fz-xs); color: var(--sub); }
+    #totalGeral {
+      background: var(--primary-light); color: var(--primary);
+      font-size: var(--fz-sm); font-weight: 600;
+      padding: 5px 14px; border-radius: 20px;
+      border: 1px solid var(--primary-border); white-space: nowrap;
+    }
+    main { max-width: 1200px; margin: auto; padding: 20px 16px; }
 
-    /* ── FORM ────────────────────────────────────────────── */
-    label {
-      display: block;
-      font-size: .72rem;
-      font-weight: 600;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 6px;
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    .filtros {
+      background: var(--surface); padding: 16px 20px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 14px; box-shadow: var(--shadow-sm);
     }
-    input[type=text] {
-      width: 100%;
-      background: var(--surface2);
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 11px 14px;
-      font-family: 'Outfit', sans-serif;
-      font-size: 1rem;
-      color: var(--text);
-      outline: none;
-      transition: border-color .2s;
+    .busca-wrap { grid-column: 1 / -1; position: relative; }
+    .busca-wrap::before {
+      content: "🔍"; position: absolute; left: 12px; top: 50%;
+      transform: translateY(-50%); font-size: 14px; pointer-events: none;
     }
-    input[type=text]::placeholder { color: var(--muted); }
-    input[type=text]:focus { border-color: var(--gold); }
+    .busca-wrap input { padding-left: 38px !important; }
+    .campo label {
+      font-size: var(--fz-xs); font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 5px;
+    }
+    .campo input, .campo select {
+      width: 100%; padding: 10px 12px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      font-size: var(--fz-sm); font-family: var(--font); color: var(--text);
+      background: var(--surface); outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .campo input:focus, .campo select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(58,125,48,0.12);
+    }
+    .campo input::placeholder { color: #a8c4a4; }
+    .btn-wrap { display: flex; align-items: flex-end; }
+    .btn-limpar {
+      width: 100%; padding: 10px 14px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      cursor: pointer; background: var(--surface);
+      font-size: var(--fz-sm); font-family: var(--font);
+      color: var(--sub); font-weight: 500;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-limpar:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary-border); }
 
-    /* ── BUTTONS ─────────────────────────────────────────── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 11px 20px;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Outfit', sans-serif;
-      font-size: .9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity .15s, transform .1s;
+    /* ============================================================
+       STATUS BAR
+    ============================================================ */
+    .status-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: var(--fz-xs); color: var(--sub); margin-bottom: 10px; padding: 0 2px;
     }
-    .btn:active { transform: scale(.96); }
-    .btn-gold   { background: var(--gold); color: #0f1117; }
-    .btn-gold:hover { opacity: .88; }
-    .btn-green  { background: var(--green); color: #0f1117; }
-    .btn-green:hover { opacity: .88; }
-    .btn-ghost  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
-    .btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
-    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    #infoResultados::before { content: "🔎 "; }
 
-    /* ── SCANNER ─────────────────────────────────────────── */
-    #reader {
-      border-radius: 10px;
-      overflow: hidden;
-      background: var(--surface2);
-      border: 1.5px dashed var(--border);
-      min-height: 260px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    /* ============================================================
+       TABELA
+    ============================================================ */
+    .scroll-x {
+      background: var(--surface); border-radius: var(--radius-md);
+      border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm);
     }
-    #reader video { border-radius: 8px; }
-    .scan-placeholder {
-      text-align: center;
-      color: var(--muted);
-      padding: 30px 20px;
-      line-height: 1.8;
-      font-size: .88rem;
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky; top: 0; background: var(--surface-alt);
+      padding: 11px 14px; text-align: left; cursor: pointer;
+      user-select: none; white-space: nowrap;
+      font-size: var(--fz-xs); font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border); transition: color 0.15s;
     }
-    .scan-placeholder .icon { font-size: 2.8rem; margin-bottom: 10px; display: block; opacity: .4; }
-
-    /* ── LAST SCAN ───────────────────────────────────────── */
-    #last-scan {
-      display: none;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-top: 14px;
-      border: 1px solid;
-      animation: slideIn .3s ease;
-    }
-    #last-scan.ok  { background: rgba(62,207,142,.08); border-color: rgba(62,207,142,.3); }
-    #last-scan.err { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.3); }
-    @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
-    .ls-row { display: flex; align-items: flex-start; gap: 12px; }
-    .ls-icon { font-size: 1.6rem; line-height: 1; flex-shrink:0; margin-top:2px; }
-    .ls-tombo { font-family: 'Libre Baskerville', serif; font-size: 1.05rem; color: var(--text); }
-    .ls-titulo { font-size: .83rem; color: var(--muted); margin-top: 3px; }
-    .ls-msg   { font-size: .8rem; margin-top: 4px; }
-    .ls-msg.ok  { color: var(--green); }
-    .ls-msg.err { color: var(--red); }
-
-    /* ── COUNTER ─────────────────────────────────────────── */
-    .counters {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 14px;
-    }
-    .count-box {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-      text-align: center;
-    }
-    .count-num {
-      font-family: 'Libre Baskerville', serif;
-      font-size: 2.2rem;
-      line-height: 1;
-    }
-    .count-num.gold  { color: var(--gold); }
-    .count-num.green { color: var(--green); }
-    .count-num.red   { color: var(--red); }
-    .count-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
-
-    /* ── MANUAL ──────────────────────────────────────────── */
-    #manual-area {
-      display: none;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-    }
-    .manual-row { display: flex; gap: 8px; margin-top: 6px; }
-    .manual-row input { flex: 1; }
-
-    /* ── LOG ─────────────────────────────────────────────── */
-    .log-scroll {
-      max-height: 220px;
-      overflow-y: auto;
-      margin-top: 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
-    }
-    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-    thead { position: sticky; top: 0; background: var(--surface2); }
-    th { padding: 8px 10px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    td { padding: 7px 10px; border-bottom: 1px solid rgba(42,48,71,.5); }
-    tr:last-child td { border-bottom: none; }
-    .tag-ok  { display:inline-block; padding:2px 7px; border-radius:4px; background:rgba(62,207,142,.15); color:var(--green); font-size:.7rem; }
-    .tag-err { display:inline-block; padding:2px 7px; border-radius:4px; background:rgba(248,113,113,.15); color:var(--red);   font-size:.7rem; }
-
-    /* ── SETUP NOTICE ────────────────────────────────────── */
-    .notice {
-      background: rgba(212,168,75,.06);
-      border: 1px solid var(--gold-dim);
-      border-radius: 10px;
-      padding: 16px 18px;
-      font-size: .84rem;
-      line-height: 1.75;
-      color: var(--text);
-    }
-    .notice strong { color: var(--gold); }
-    .notice ol { padding-left: 18px; margin-top: 8px; }
-    .notice li { margin-bottom: 5px; }
-    .notice code {
-      background: var(--surface2);
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: .82em;
-      color: var(--gold);
+    thead th:hover { color: var(--primary); }
+    th.asc::after  { content: " ▲"; color: var(--primary); }
+    th.desc::after { content: " ▼"; color: var(--primary); }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: var(--fz-sm); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--hover); }
+    .tombo-badge {
+      background: var(--primary-light); color: var(--primary);
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; border: 1px solid var(--primary-border); white-space: nowrap;
     }
 
-    /* ── TOAST ───────────────────────────────────────────── */
-    #toast {
-      position: fixed;
-      bottom: 24px; left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 11px 22px;
-      border-radius: 30px;
-      font-size: .85rem;
-      box-shadow: 0 6px 30px rgba(0,0,0,.5);
-      transition: transform .3s ease, opacity .3s;
-      opacity: 0;
-      z-index: 999;
-      max-width: 90vw;
-      text-align: center;
-    }
-    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    /* ============================================================
+       CARDS – ocultos por padrão, ativados pela classe JS no body
+    ============================================================ */
+    .cards { display: none; }
 
-    /* ── COLLAB TAG ──────────────────────────────────────── */
-    .collab-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: .82rem;
-      color: var(--text);
-      margin-bottom: 14px;
-    }
-    .collab-tag button {
-      background: none; border: none; color: var(--muted);
-      cursor: pointer; font-size: .75rem; padding: 0 0 0 4px;
-      font-family: 'Outfit', sans-serif;
-    }
-    .collab-tag button:hover { color: var(--red); }
+    /* ============================================================
+       MODO MOBILE
+       A classe .mobile é adicionada ao <body> pelo JavaScript
+       quando window.innerWidth <= BREAKPOINT.
+       Todos os ajustes de mobile ficam aqui, usando o seletor
+       body.mobile em vez de @media, porque o Apps Script serve
+       a página num iframe com viewport fixa.
+    ============================================================ */
+    body.mobile header    { padding: 10px 14px; }
+    body.mobile .header-info p { display: none; }
+    body.mobile main      { padding: 12px 10px; }
+    body.mobile .scroll-x { display: none; }
+    body.mobile .cards    { display: flex; flex-direction: column; gap: 10px; }
 
-    @media(max-width:440px) {
-      .btn-row { flex-direction: column; }
-      .btn { width: 100%; }
+    /* Card individual */
+    .card {
+      background: var(--surface); padding: 14px 16px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
     }
+    .card-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .card-titulo { font-weight: 600; font-size: 16px; color: var(--primary); line-height: 1.3; }
+    .card-divider { height: 1px; background: var(--border); margin: 8px 0; }
+    .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .card-meta-item { font-size: 14px; color: var(--sub); }
+    .card-meta-item b {
+      color: var(--text); font-weight: 600; display: block;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+    }
+
+    /* ============================================================
+       PAGINAÇÃO
+    ============================================================ */
+    .paginacao { display: flex; justify-content: center; gap: 5px; padding: 14px; flex-wrap: wrap; }
+    .paginacao button {
+      padding: 8px 14px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; font-size: var(--fz-sm); font-family: var(--font);
+      color: var(--sub); font-weight: 500; min-width: 40px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .paginacao button:hover:not(:disabled) { background: var(--primary-light); color: var(--primary); border-color: var(--primary-border); }
+    .paginacao button.ativa { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .paginacao button:disabled { opacity: .35; cursor: default; }
+
+    /* ============================================================
+       ANIMAÇÕES
+    ============================================================ */
+    @keyframes girar { to { transform: rotate(360deg); } }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fadeIn { animation: fadeIn 0.25s ease; }
+
   </style>
 </head>
+
 <body>
 
-<!-- ══ HEADER ═══════════════════════════════════════════════ -->
-<header>
-  <div class="logo">📚</div>
-  <div>
-    <h1>Inventário de Acervo 1 </h1>
-    <p>Leitura em tempo real</p>
-  </div>
-  <div class="status-pill" id="status-pill">
-    <div class="dot" id="status-dot"></div>
-    <span id="status-txt">aguardando</span>
-  </div>
-</header>
-
-<main>
-
-  <!-- ══ IDENTIFICAÇÃO ════════════════════════════════════ -->
-  <div class="card" id="card-id">
-    <div class="card-title">👤 Identificação</div>
-    <label for="colaborador">Seu nome</label>
-    <input type="text" id="colaborador" placeholder="Ex.: Maria Souza" autocomplete="name" />
-    <div class="btn-row">
-      <button class="btn btn-gold" onclick="confirmarColaborador()">Confirmar e iniciar leitura</button>
-    </div>
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <span class="loading-texto">Carregando acervo…</span>
   </div>
 
-  <!-- ══ SCANNER ══════════════════════════════════════════ -->
-  <div class="card" id="card-scanner" style="display:none">
-    <div class="card-title">📷 Leitura de QR Code</div>
-
-    <div class="collab-tag">
-      👤 <strong id="nome-exibido"></strong>
-      <button onclick="trocarColaborador()">trocar</button>
-    </div>
-
-    <div id="reader">
-      <div class="scan-placeholder">
-        <span class="icon">▦</span>
-        Clique em <strong>Iniciar câmera</strong><br>e aponte para o QR Code.
-      </div>
-    </div>
-
-    <div id="last-scan">
-      <div class="ls-row">
-        <div class="ls-icon" id="ls-icon"></div>
-        <div>
-          <div class="ls-tombo" id="ls-tombo"></div>
-          <div class="ls-titulo" id="ls-titulo"></div>
-          <div class="ls-msg"   id="ls-msg"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="counters">
-      <div class="count-box">
-        <div class="count-num gold" id="cnt-total">0</div>
-        <div class="count-label">lidos</div>
-      </div>
-      <div class="count-box">
-        <div class="count-num green" id="cnt-ok">0</div>
-        <div class="count-label">gravados ✓</div>
-      </div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn btn-gold"  id="btn-start" onclick="iniciarScanner()">▶ Iniciar câmera</button>
-      <button class="btn btn-ghost" id="btn-stop"  onclick="pararScanner()" style="display:none">⏹ Parar câmera</button>
-      <button class="btn btn-ghost" onclick="toggleManual()">✏️ Digitar</button>
-    </div>
-
-    <div id="manual-area">
-      <label for="manual-qr">Conteúdo do QR Code <span style="color:var(--muted);font-size:.75em">(ex.: 00123|Dom Casmurro)</span></label>
-      <div class="manual-row">
-        <input type="text" id="manual-qr" placeholder="Tombo|Título" />
-        <button class="btn btn-green" onclick="registrarManual()">Gravar</button>
-      </div>
-    </div>
+  <!-- ============================================================
+       PAINEL DE DIAGNÓSTICO TEMPORÁRIO
+       Mostra os valores reais de largura dentro do iframe.
+       REMOVA este bloco após confirmar o breakpoint correto.
+  ============================================================ -->
+  <div id="diagnostico">
+    <strong>🔧 Diagnóstico de layout (remover depois)</strong><br>
+    window.innerWidth: <span id="d-inner"></span><br>
+    document.body.clientWidth: <span id="d-client"></span><br>
+    screen.width: <span id="d-screen"></span><br>
+    Classe no body: <span id="d-classe"></span>
   </div>
 
-  <!-- ══ LOG LOCAL ═════════════════════════════════════════ -->
-  <div class="card" id="card-log" style="display:none">
-    <div class="card-title">📋 Registros desta sessão</div>
-    <div class="log-scroll">
+  <!-- Header -->
+  <header>
+    <div class="header-brand">
+      <div class="header-icon">📚</div>
+      <div class="header-info">
+        <h1>Biblioteca Platão</h1>
+        <p>Acervo Digital</p>
+      </div>
+    </div>
+    <span id="totalGeral"></span>
+  </header>
+
+  <main>
+
+    <div class="filtros">
+      <div class="campo busca-wrap">
+        <label for="busca">Busca</label>
+        <input id="busca" type="search" placeholder="Buscar por título, autor, editora…" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="filtroAutor">Autor</label>
+        <select id="filtroAutor"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroEditora">Editora</label>
+        <select id="filtroEditora"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroGrupo">Grupo</label>
+        <select id="filtroGrupo"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroCategoria">Categoria</label>
+        <select id="filtroCategoria"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="filtroAno">Ano</label>
+        <select id="filtroAno"><option value="">Todos</option></select>
+      </div>
+      <div class="btn-wrap">
+        <button class="btn-limpar" onclick="limparFiltros()">✕ Limpar filtros</button>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span id="infoResultados"></span>
+      <span id="infoPagina"></span>
+    </div>
+
+    <div class="scroll-x">
       <table>
-        <thead>
-          <tr><th>#</th><th>Tombo</th><th>Título</th><th>Hora</th><th>Drive</th></tr>
-        </thead>
-        <tbody id="log-tbody"></tbody>
+        <thead id="cabecalho"></thead>
+        <tbody id="corpo"></tbody>
       </table>
     </div>
-  </div>
 
+    <div id="cardsContainer" class="cards"></div>
+    <div class="paginacao" id="paginacao"></div>
 
-</main>
+  </main>
 
-<div id="toast"></div>
+  <script>
 
-<script>
-// ── CONFIG ────────────────────────────────────────────────
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-d15luvxsBYu-1x1R3Ki2Fw2dKVTnJ_HfKkNukwt9_2OYALZofIXCi7a9CXe6ZuOz/exec';
-const LS_NOME    = 'inv_colaborador';
+    /* ============================================================
+       CONFIGURAÇÃO
+    ============================================================ */
+    const COLS = [
+      { idx:  1, label: 'Tombo'         },
+      { idx:  2, label: 'Autor'         },
+      { idx:  3, label: 'Título'        },
+      { idx:  5, label: 'Editora'       },
+      { idx:  6, label: 'Ano'           },
+      { idx: 10, label: 'Classificação' },
+      { idx: 11, label: 'Grupo'         },
+      { idx: 13, label: 'Categoria'     }
+    ];
+    const IDX_AUTOR     = 2,  IDX_EDITORA   = 5;
+    const IDX_ANO       = 6,  IDX_GRUPO     = 11;
+    const IDX_CATEGORIA = 13, POR_PAGINA    = 50;
 
-let scriptUrl    = SCRIPT_URL;
-let colaborador  = '';
-let registros    = [];
-let html5Qr      = null;
-let scannerAtivo = false;
-let ultimoQR     = '';
-let debounce     = null;
-let cntOk        = 0;
+    /*
+      BREAKPOINT: valor usado para decidir mobile vs desktop.
+      Após ver o diagnóstico no celular, ajuste este valor se necessário.
+      Se window.innerWidth no celular mostrar ex: 980, mude para 1024.
+    */
+    const BREAKPOINT = 768;
 
-// ── INIT ──────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  setStatus('ok', 'conectado');
+    /* ============================================================
+       ESTADO
+    ============================================================ */
+    let dados = [], filtrados = [], pagina = 1;
+    let ordenacao = { col: -1, dir: 1 };
 
-  const nome = localStorage.getItem(LS_NOME);
-  if (nome) {
-    colaborador = nome;
-    mostrarScanner();
-    document.getElementById('card-id').style.display = 'none';
-  }
+    /* ============================================================
+       DETECÇÃO DE MOBILE
+       Adiciona/remove a classe "mobile" no <body>.
+       Todo o CSS de mobile usa o seletor body.mobile em vez de
+       @media, porque @media não funciona corretamente dentro do
+       iframe do Apps Script.
+    ============================================================ */
+    function atualizarLayout() {
+      const w       = window.innerWidth;
+      const cliente = document.body.clientWidth;
+      const tela    = screen.width;
+      const isMob   = w <= BREAKPOINT || cliente <= BREAKPOINT;
 
-  document.getElementById('colaborador').addEventListener('keydown', e => { if(e.key==='Enter') confirmarColaborador(); });
-  document.getElementById('manual-qr').addEventListener('keydown',  e => { if(e.key==='Enter') registrarManual(); });
-});
+      document.body.classList.toggle('mobile', isMob);
 
-// ── IDENTIFICAÇÃO ────────────────────────────────────────
-function confirmarColaborador() {
-  const val = document.getElementById('colaborador').value.trim();
-  if (!val) { toast('Informe seu nome.'); return; }
-  colaborador = val;
-  localStorage.setItem(LS_NOME, val);
-  document.getElementById('card-id').style.display = 'none';
-  mostrarScanner();
-}
-
-function trocarColaborador() {
-  pararScanner();
-  colaborador = '';
-  localStorage.removeItem(LS_NOME);
-  document.getElementById('card-id').style.display = 'block';
-  document.getElementById('card-scanner').style.display = 'none';
-}
-
-function mostrarScanner() {
-  document.getElementById('nome-exibido').textContent = colaborador;
-  document.getElementById('card-scanner').style.display = 'block';
-  document.getElementById('card-log').style.display = 'block';
-}
-
-// ── SCANNER ───────────────────────────────────────────────
-function iniciarScanner() {
-  html5Qr = new Html5Qrcode('reader');
-  html5Qr.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 260, height: 260 } },
-    onQRSucesso,
-    () => {}
-  ).then(() => {
-    scannerAtivo = true;
-    document.getElementById('btn-start').style.display = 'none';
-    document.getElementById('btn-stop').style.display  = 'inline-flex';
-  }).catch(err => toast('Câmera indisponível: ' + err));
-}
-
-function pararScanner() {
-  if (html5Qr && scannerAtivo) {
-    html5Qr.stop().then(() => {
-      html5Qr.clear();
-      scannerAtivo = false;
-      document.getElementById('btn-start').style.display = 'inline-flex';
-      document.getElementById('btn-stop').style.display  = 'none';
-    }).catch(() => {});
-  }
-}
-
-function onQRSucesso(texto) {
-  if (texto === ultimoQR) return;
-  ultimoQR = texto;
-  clearTimeout(debounce);
-  debounce = setTimeout(() => { ultimoQR = ''; }, 3000);
-  processarQR(texto);
-}
-
-// ── PROCESSAR QR ─────────────────────────────────────────
-function processarQR(texto) {
-  const partes = texto.split('|');
-  const tombo  = partes[0].trim();
-  const titulo = partes[1] ? partes[1].trim() : '—';
-
-  const agora = new Date();
-  const hora  = agora.toLocaleTimeString('pt-BR');
-
-  const reg = { tombo, titulo, colaborador, hora, status: 'enviando' };
-  registros.push(reg);
-  const idx = registros.length - 1;
-
-  // UI imediata
-  document.getElementById('cnt-total').textContent = registros.length;
-  exibirLastScan(tombo, titulo, '⏳', 'Gravando no Drive…', null);
-  adicionarLinha(reg, idx);
-  setStatus('spin', 'gravando…');
-
-  // Técnica do form+iframe: submete um formulário GET para um iframe oculto.
-  // Formulários HTML nunca são bloqueados por CORS — a requisição sempre
-  // chega ao Apps Script. O iframe absorve o redirecionamento do Google
-  // sem afetar a página principal.
-  let iframeEl = document.getElementById('_inv_iframe');
-  if (!iframeEl) {
-    iframeEl = document.createElement('iframe');
-    iframeEl.id = '_inv_iframe';
-    iframeEl.name = '_inv_iframe';
-    iframeEl.style.display = 'none';
-    document.body.appendChild(iframeEl);
-  }
-
-  const form = document.createElement('form');
-  form.method = 'GET';
-  form.action = scriptUrl;
-  form.target = '_inv_iframe';
-  form.style.display = 'none';
-
-  [['tombo', tombo], ['titulo', titulo], ['colaborador', colaborador]].forEach(([k, v]) => {
-    const inp = document.createElement('input');
-    inp.type  = 'hidden';
-    inp.name  = k;
-    inp.value = v;
-    form.appendChild(inp);
-  });
-
-  document.body.appendChild(form);
-  form.submit();
-  document.body.removeChild(form);
-
-  // Confirma na UI após 2s (tempo suficiente para o Apps Script gravar)
-  setTimeout(() => {
-    if (registros[idx].status === 'enviando') {
-      registros[idx].status = 'ok';
-      cntOk++;
-      document.getElementById('cnt-ok').textContent = cntOk;
-      atualizarStatusLinha(idx, 'ok');
-      exibirLastScan(tombo, titulo, '\u2705', '\u2713 Gravado na planilha!', 'ok');
-      setStatus('ok', 'conectado');
+      // Atualiza painel de diagnóstico
+      const di = document.getElementById('d-inner');
+      const dc = document.getElementById('d-client');
+      const ds = document.getElementById('d-screen');
+      const dk = document.getElementById('d-classe');
+      if (di) di.textContent = w + 'px';
+      if (dc) dc.textContent = cliente + 'px';
+      if (ds) ds.textContent = tela + 'px';
+      if (dk) dk.textContent = document.body.className || '(nenhuma)';
     }
-  }, 2000);
-}
 
-// ── UI ────────────────────────────────────────────────────
-function exibirLastScan(tombo, titulo, icon, msg, tipo) {
-  const el = document.getElementById('last-scan');
-  el.style.display = 'block';
-  el.className = tipo || '';
-  document.getElementById('ls-icon').textContent   = icon;
-  document.getElementById('ls-tombo').textContent  = 'Tombo ' + tombo;
-  document.getElementById('ls-titulo').textContent = titulo;
-  const msgEl = document.getElementById('ls-msg');
-  msgEl.textContent = msg;
-  msgEl.className   = 'ls-msg ' + (tipo || '');
-}
+    window.addEventListener('resize', debounce(atualizarLayout, 150));
 
-function adicionarLinha(reg, idx) {
-  const tbody = document.getElementById('log-tbody');
-  const tr = document.createElement('tr');
-  tr.id = 'row-' + idx;
-  tr.innerHTML = `
-    <td>${registros.length}</td>
-    <td><strong>${reg.tombo}</strong></td>
-    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${reg.titulo}</td>
-    <td style="white-space:nowrap;font-size:.75rem">${reg.hora}</td>
-    <td id="status-${idx}"><span class="tag-ok" style="opacity:.4">…</span></td>
-  `;
-  tbody.insertBefore(tr, tbody.firstChild);
-}
+    /* ============================================================
+       INICIALIZAÇÃO
+    ============================================================ */
+    window.onload = function () {
+      atualizarLayout();
+      google.script.run
+        .withSuccessHandler(init)
+        .getDados();
+    };
 
-function atualizarStatusLinha(idx, status) {
-  const el = document.getElementById('status-' + idx);
-  if (!el) return;
-  el.innerHTML = status === 'ok'
-    ? '<span class="tag-ok">✓ Drive</span>'
-    : '<span class="tag-err">✗ falha</span>';
-}
+    function init(d) {
+      const loading = document.getElementById('loading');
+      if (loading) loading.classList.add('oculto');
+      if (!d || d.length === 0) return;
 
-// ── MANUAL ────────────────────────────────────────────────
-function toggleManual() {
-  const el = document.getElementById('manual-area');
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-function registrarManual() {
-  const val = document.getElementById('manual-qr').value.trim();
-  if (!val) { toast('Digite o conteúdo do QR Code.'); return; }
-  processarQR(val);
-  document.getElementById('manual-qr').value = '';
-}
+      dados = d.slice(1).filter(r => r[1]);
 
-// ── STATUS PILL ───────────────────────────────────────────
-function setStatus(tipo, txt) {
-  const dot = document.getElementById('status-dot');
-  const lbl = document.getElementById('status-txt');
-  dot.className = 'dot ' + tipo;
-  lbl.textContent = txt;
-}
+      const totalEl = document.getElementById('totalGeral');
+      if (totalEl) totalEl.textContent = dados.length + ' obras';
 
-// ── TOAST ─────────────────────────────────────────────────
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'show';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.className = ''; }, 3000);
-}
-</script>
+      montarCabecalho();
+      popular('filtroAutor',     IDX_AUTOR);
+      popular('filtroEditora',   IDX_EDITORA);
+      popular('filtroGrupo',     IDX_GRUPO);
+      popular('filtroCategoria', IDX_CATEGORIA);
+      popular('filtroAno',       IDX_ANO);
+
+      document.getElementById('busca')
+        .addEventListener('input', debounce(aplicar, 300));
+      document.querySelectorAll('select')
+        .forEach(s => s.addEventListener('change', aplicar));
+
+      aplicar();
+    }
+
+    /* ============================================================
+       CABEÇALHO DA TABELA
+    ============================================================ */
+    function montarCabecalho() {
+      const cab = document.getElementById('cabecalho');
+      cab.innerHTML = '';
+      const tr = document.createElement('tr');
+      COLS.forEach(c => {
+        const th = document.createElement('th');
+        th.textContent = c.label;
+        th.onclick = () => {
+          ordenacao.col === c.idx ? ordenacao.dir *= -1
+                                  : (ordenacao.col = c.idx, ordenacao.dir = 1);
+          ordenarDados(); render();
+        };
+        tr.appendChild(th);
+      });
+      cab.appendChild(tr);
+    }
+
+    /* ============================================================
+       POPULAR SELECTS
+    ============================================================ */
+    function popular(id, col) {
+      const s = document.getElementById(id);
+      if (!s) return;
+      [...new Set(dados.map(r => r[col]).filter(Boolean))]
+        .sort().forEach(v => s.add(new Option(v, v)));
+    }
+
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    function aplicar() {
+      const busca = (document.getElementById('busca')?.value ?? '').toLowerCase();
+      const fA    = document.getElementById('filtroAutor')?.value     ?? '';
+      const fE    = document.getElementById('filtroEditora')?.value   ?? '';
+      const fG    = document.getElementById('filtroGrupo')?.value     ?? '';
+      const fC    = document.getElementById('filtroCategoria')?.value ?? '';
+      const fAno  = document.getElementById('filtroAno')?.value       ?? '';
+
+      filtrados = dados.filter(r => {
+        if (busca && !r.join(' ').toLowerCase().includes(busca)) return false;
+        if (fA   && r[IDX_AUTOR]     != fA)   return false;
+        if (fE   && r[IDX_EDITORA]   != fE)   return false;
+        if (fG   && r[IDX_GRUPO]     != fG)   return false;
+        if (fC   && r[IDX_CATEGORIA] != fC)   return false;
+        if (fAno && r[IDX_ANO]       != fAno) return false;
+        return true;
+      });
+
+      pagina = 1;
+      if (ordenacao.col >= 0) ordenarDados();
+      render();
+    }
+
+    /* ============================================================
+       ORDENAÇÃO
+    ============================================================ */
+    function ordenarDados() {
+      filtrados.sort((a, b) => {
+        const va = a[ordenacao.col], vb = b[ordenacao.col];
+        if (!isNaN(va) && !isNaN(vb)) return (Number(va) - Number(vb)) * ordenacao.dir;
+        return String(va).localeCompare(String(vb), 'pt') * ordenacao.dir;
+      });
+    }
+
+    /* ============================================================
+       RENDERIZAÇÃO
+       Constrói sempre tabela + cards.
+       CSS com seletor body.mobile controla qual é visível.
+    ============================================================ */
+    function render() {
+      const corpo = document.getElementById('corpo');
+      const cards = document.getElementById('cardsContainer');
+      if (!corpo || !cards) return;
+
+      corpo.innerHTML = '';
+      cards.innerHTML = '';
+
+      const ini  = (pagina - 1) * POR_PAGINA;
+      const page = filtrados.slice(ini, ini + POR_PAGINA);
+      const frag = document.createDocumentFragment();
+
+      page.forEach(r => {
+
+        /* -- CARD -- */
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const hdr = document.createElement('div');
+        hdr.className = 'card-header';
+
+        const badge = document.createElement('span');
+        badge.className = 'tombo-badge';
+        badge.textContent = r[COLS[0].idx] || '—';
+
+        const titulo = document.createElement('div');
+        titulo.className = 'card-titulo';
+        titulo.textContent = r[COLS[2].idx] || '';
+
+        hdr.appendChild(badge);
+        hdr.appendChild(titulo);
+        card.appendChild(hdr);
+
+        const div = document.createElement('div');
+        div.className = 'card-divider';
+        card.appendChild(div);
+
+        const meta = document.createElement('div');
+        meta.className = 'card-meta';
+        COLS.forEach((col, i) => {
+          if (i === 0 || i === 2) return;
+          const item = document.createElement('div');
+          item.className = 'card-meta-item';
+          item.innerHTML = `<b>${col.label}</b>${r[col.idx] || '—'}`;
+          meta.appendChild(item);
+        });
+        card.appendChild(meta);
+        cards.appendChild(card);
+
+        /* -- LINHA DE TABELA -- */
+        const tr = document.createElement('tr');
+        COLS.forEach((col, i) => {
+          const td = document.createElement('td');
+          if (i === 0) {
+            const b = document.createElement('span');
+            b.className = 'tombo-badge';
+            b.textContent = r[col.idx] || '';
+            td.appendChild(b);
+          } else {
+            td.textContent = r[col.idx] || '';
+          }
+          tr.appendChild(td);
+        });
+        frag.appendChild(tr);
+      });
+
+      corpo.appendChild(frag);
+
+      [corpo, cards].forEach(el => {
+        el.classList.remove('fadeIn');
+        void el.offsetWidth;
+        el.classList.add('fadeIn');
+      });
+
+      const res = document.getElementById('infoResultados');
+      if (res) res.textContent = filtrados.length + ' resultados';
+
+      const pag = document.getElementById('infoPagina');
+      if (pag) pag.textContent = `Mostrando ${ini + 1}–${ini + page.length}`;
+
+      // Atualiza diagnóstico a cada render
+      atualizarLayout();
+
+      paginar();
+      atualizarOrdenacaoVisual();
+    }
+
+    /* ============================================================
+       PAGINAÇÃO
+    ============================================================ */
+    function paginar() {
+      const paginacao = document.getElementById('paginacao');
+      if (!paginacao) return;
+      const total = Math.ceil(filtrados.length / POR_PAGINA);
+      paginacao.innerHTML = '';
+      const criarBtn = (t, p, d = false) => {
+        const b = document.createElement('button');
+        b.textContent = t;
+        if (d) b.disabled = true;
+        b.onclick = () => { pagina = p; render(); scrollTo(0, 0); };
+        return b;
+      };
+      paginacao.appendChild(criarBtn('«', pagina - 1, pagina === 1));
+      const ini = Math.max(1, pagina - 2);
+      const fim = Math.min(total, ini + 4);
+      for (let i = ini; i <= fim; i++) {
+        const b = criarBtn(i, i);
+        if (i === pagina) b.classList.add('ativa');
+        paginacao.appendChild(b);
+      }
+      if (fim < total) {
+        paginacao.appendChild(criarBtn('…', pagina, true));
+        paginacao.appendChild(criarBtn(total, total));
+      }
+      paginacao.appendChild(criarBtn('»', pagina + 1, pagina === total));
+    }
+
+    /* ============================================================
+       ORDENAÇÃO VISUAL
+    ============================================================ */
+    function atualizarOrdenacaoVisual() {
+      document.querySelectorAll('thead th').forEach((th, i) => {
+        th.classList.remove('asc', 'desc');
+        if (COLS[i] && COLS[i].idx === ordenacao.col)
+          th.classList.add(ordenacao.dir === 1 ? 'asc' : 'desc');
+      });
+    }
+
+    /* ============================================================
+       LIMPAR FILTROS
+    ============================================================ */
+    function limparFiltros() {
+      document.querySelectorAll('input, select').forEach(el => (el.value = ''));
+      pagina = 1;
+      aplicar();
+    }
+
+    /* ============================================================
+       DEBOUNCE
+    ============================================================ */
+    function debounce(fn, delay) {
+      let t;
+      return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); };
+    }
+
+  </script>
 </body>
 </html>
