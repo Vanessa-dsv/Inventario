@@ -171,6 +171,7 @@
           Clique em <strong>Iniciar câmera</strong><br>e aponte para o QR Code do livro.
         </div>
       </div>
+      <div id="scan-flash"></div>
       <div id="reader-overlay" style="
         display:none; position:absolute; inset:0;
         background:rgba(15,17,23,.82); border-radius:8px;
@@ -320,12 +321,40 @@ function onLeitura(texto) {
   processar(texto);
 }
 
+// ── BIP + FLASH ──────────────────────────────────────────────
+function bipEFlash() {
+  // Bip via Web Audio API (sem arquivo externo)
+  try {
+    var ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    var osc  = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type            = 'sine';
+    osc.frequency.value = 1046; // Dó agudo
+    gain.gain.setValueAtTime(.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .18);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + .18);
+  } catch(e) {}
+
+  // Tarja verde rápida sobre o reader
+  var flash = document.getElementById('scan-flash');
+  if (flash) {
+    flash.classList.add('ativo');
+    setTimeout(function() { flash.classList.remove('ativo'); }, 180);
+  }
+}
+
 // ── PROCESSAR ────────────────────────────────────────────────
 function processar(texto) {
   var partes = texto.split(';');
   var tombo  = partes[0].trim();
   var titulo = partes[1] ? partes[1].trim() : '—';
   var hora   = new Date().toLocaleTimeString('pt-BR');
+
+  // Feedback imediato: bip + tarja verde
+  bipEFlash();
 
   // Atualiza UI imediatamente
   totalLidos++;
