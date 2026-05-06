@@ -1,4 +1,4 @@
-split<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -164,10 +164,21 @@ split<!DOCTYPE html>
       <button class="trocar-btn" onclick="trocar()">trocar nome</button>
     </div>
 
-    <div id="reader">
-      <div class="placeholder">
-        <span>▦</span>
-        Clique em <strong>Iniciar câmera</strong><br>e aponte para o QR Code do livro.
+    <div style="position:relative">
+      <div id="reader">
+        <div class="placeholder">
+          <span>▦</span>
+          Clique em <strong>Iniciar câmera</strong><br>e aponte para o QR Code do livro.
+        </div>
+      </div>
+      <div id="reader-overlay" style="
+        display:none; position:absolute; inset:0;
+        background:rgba(15,17,23,.82); border-radius:8px;
+        align-items:center; justify-content:center;
+        flex-direction:column; gap:10px; z-index:5;">
+        <div style="font-size:2.5rem">✅</div>
+        <div style="font-family:'Libre Baskerville',serif;font-size:1.1rem;color:#3ecf8e">Gravado!</div>
+        <div style="font-size:.8rem;color:#6b7280">Aguarde para o próximo…</div>
       </div>
     </div>
 
@@ -195,9 +206,9 @@ split<!DOCTYPE html>
     </div>
 
     <div id="manual-area">
-      <label for="manual-input">Conteúdo do QR Code <small style="text-transform:none;letter-spacing:0;color:var(--muted)">(ex.: 00123;O Profeta)</small></label>
+      <label for="manual-input">Conteúdo do QR Code <small style="text-transform:none;letter-spacing:0;color:var(--muted)">(ex.: 00123|Dom Casmurro)</small></label>
       <div class="manual-row">
-        <input type="text" id="manual-input" placeholder="Tombo;Título" />
+        <input type="text" id="manual-input" placeholder="Tombo|Título" />
         <button class="btn btn-green" onclick="gravarManual()">Gravar</button>
       </div>
     </div>
@@ -223,13 +234,14 @@ split<!DOCTYPE html>
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-d15luvxsBYu-1x1R3Ki2Fw2dKVTnJ_HfKkNukwt9_2OYALZofIXCi7a9CXe6ZuOz/exec';
 
 // ── ESTADO ───────────────────────────────────────────────────
-var colaborador  = '';
-var registros    = [];
-var scanner      = null;
-var ativo        = false;
-var ultimoQR     = '';
-var timerQR      = null;
-var totalLidos   = 0;
+var colaborador   = '';
+var registros     = [];
+var scanner       = null;
+var ativo         = false;
+var bloqueado     = false; // impede releitura enquanto processa
+var ultimoQR      = '';
+var timerQR       = null;
+var totalLidos    = 0;
 var totalGravados = 0;
 
 // ── INIT ─────────────────────────────────────────────────────
@@ -301,10 +313,10 @@ function parar() {
 }
 
 function onLeitura(texto) {
-  if (texto === ultimoQR) return;
+  if (bloqueado) return;          // scanner pausado após leitura
+  if (texto === ultimoQR) return; // mesmo código em sequência
   ultimoQR = texto;
-  clearTimeout(timerQR);
-  timerQR = setTimeout(function() { ultimoQR = ''; }, 3000);
+  bloqueado = true;               // bloqueia imediatamente
   processar(texto);
 }
 
@@ -357,9 +369,22 @@ function processar(texto) {
 function gravar_ok(idx, tombo, titulo) {
   totalGravados++;
   document.getElementById('cnt-gravados').textContent = totalGravados;
-  document.getElementById('ls-status').textContent = '✓ Gravado na planilha';
+  document.getElementById('ls-status').textContent = '✓ Gravado! Aponte para o próximo livro.';
   var el = document.getElementById('st-' + idx);
   if (el) el.innerHTML = '<span class="tag-ok">✓ Drive</span>';
+
+  // Mostra overlay "Gravado!" sobre o reader por 2s, depois desbloqueia
+  var overlay = document.getElementById('reader-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    setTimeout(function() {
+      overlay.style.display = 'none';
+      bloqueado = false;
+      ultimoQR  = '';
+    }, 2000);
+  } else {
+    setTimeout(function() { bloqueado = false; ultimoQR = ''; }, 2000);
+  }
 }
 
 // ── MANUAL ────────────────────────────────────────────────────
