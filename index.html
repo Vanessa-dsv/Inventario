@@ -102,8 +102,9 @@
     .count-num.green { color: var(--green); }
     .count-label { font-size: .7rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
     #manual-area { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-    .manual-row { display: flex; gap: 8px; margin-top: 6px; }
-    .manual-row input { flex: 1; }
+    .manual-row { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+    .manual-row input { flex: 1; min-width: 0; font-size: 1rem; }
+    .manual-row .btn-gravar { padding: 11px 14px; font-size: .85rem; white-space: nowrap; flex-shrink: 0; }
     .log-scroll { max-height: 220px; overflow-y: auto; margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: .8rem; }
     thead { position: sticky; top: 0; background: var(--surface2); }
@@ -127,7 +128,11 @@
       max-width: 90vw; text-align: center;
     }
     #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    @media(max-width:440px) { .btn-row { flex-direction: column; } .btn { width:100%; } }
+    @media(max-width:440px) {
+      .btn-row { flex-direction: column; }
+      .btn-row .btn { width: 100%; }
+      /* manual-row NÃO empilha no celular */
+    }
   </style>
 </head>
 <body>
@@ -161,7 +166,7 @@
     <div class="card-title">📷 Leitura de QR Code</div>
     <div class="collab-row">
       <div class="collab-name">Colaborador: <strong id="nome-exibido"></strong></div>
-      <button class="trocar-btn" onclick="trocar()">trocar nome</button>
+      <button class="trocar-btn" onclick="sair()">⏻ Sair</button>
     </div>
 
     <div style="position:relative">
@@ -210,7 +215,7 @@
       <label for="manual-input">Conteúdo do QR Code <small style="text-transform:none;letter-spacing:0;color:var(--muted)">(ex.: 00123|Dom Casmurro)</small></label>
       <div class="manual-row">
         <input type="text" id="manual-input" placeholder="Tombo|Título" />
-        <button class="btn btn-green" onclick="gravarManual()">Gravar</button>
+        <button class="btn btn-green btn-gravar" onclick="gravarManual()">Gravar</button>
       </div>
     </div>
   </div>
@@ -258,6 +263,16 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('manual-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') gravarManual();
   });
+
+  // Desloga automaticamente ao fechar ou sair da página
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden' && colaborador) {
+      deslogar();
+    }
+  });
+  window.addEventListener('pagehide', function() {
+    if (colaborador) deslogar();
+  });
 });
 
 // ── IDENTIFICAÇÃO ────────────────────────────────────────────
@@ -270,13 +285,29 @@ function confirmar() {
   mostrarScanner();
 }
 
-function trocar() {
+function sair() {
+  if (!confirm('Deseja encerrar a sessão e sair?')) return;
+  deslogar();
+}
+
+function deslogar() {
   parar();
   colaborador = '';
+  registros   = [];
+  totalLidos  = 0;
+  totalGravados = 0;
+  bloqueado   = false;
+  ultimoQR    = '';
   localStorage.removeItem('inv_nome');
+  // Limpa tabela e contadores
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('cnt-lidos').textContent    = '0';
+  document.getElementById('cnt-gravados').textContent = '0';
+  document.getElementById('last-scan').style.display  = 'none';
+  document.getElementById('colaborador').value = '';
   document.getElementById('card-scanner').style.display = 'none';
-  document.getElementById('card-log').style.display = 'none';
-  document.getElementById('card-id').style.display = 'block';
+  document.getElementById('card-log').style.display     = 'none';
+  document.getElementById('card-id').style.display      = 'block';
 }
 
 function mostrarScanner() {
